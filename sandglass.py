@@ -5,6 +5,7 @@ import re
 import time
 import os.path
 import datetime
+import subprocess
 
 
 def find_proc_by_regex(regex, username):
@@ -32,6 +33,8 @@ def track_process(process, timebudget, grace, time_granularity):
     while process.is_running():
         print("Tracking process {}".format(process))
         used = time_used(process) 
+        if timebudget - 60 <= used:
+            subprocess.run([ "su", "-", "ian", "-c", "paplay /usr/share/sounds/ubuntu/ringtones/Harmonics.ogg"])
         if timebudget <= used:
             print("Terminating target process")
             process.terminate()
@@ -77,7 +80,7 @@ if __name__ == "__main__":
     regex = 'java.*minecraft'
     username = 'ian'
     #timelimit = 60 * 60 * 3
-    timelimit = 60 * 200
+    timelimit = 60 * 3
     grace = 5
     time_granularity = 10
 
