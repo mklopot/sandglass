@@ -15,25 +15,24 @@ def find_proc_by_regex(regex, username):
                (p.info['username'] == username):
                 return p
 
-def time_remaining(process, timelimit):
+def time_used(process):
     time_now = time.time()
     process_start = process.create_time()
-    remaining =  timelimit - time_now + process_start 
+    used =  time_now - process_start 
 
     print("time now: {}".format(time_now))
     print("process started: {}".format(process_start))
-    print("time limit: {}".format(timelimit))
-    print("seconds remaining: {}".format(remaining))
-    return remaining
+    print("seconds used by this instance: {}".format(used))
+    return used
 
 
-def track_process(process, timelimit, grace, time_granularity):
-    print("Entering track_process()")
-    remaining = timelimit
+def track_process(process, timebudget, grace, time_granularity):
+    print("Entering track_process(), time budget is {}".format(timebudget))
+    used = 0
     while process.is_running():
         print("Tracking process {}".format(process))
-        remaining = time_remaining(process, timelimit)
-        if remaining <= 0:
+        used = time_used(process) 
+        if timebudget <= used:
             print("Terminating target process")
             process.terminate()
             time.sleep(grace)
@@ -41,31 +40,30 @@ def track_process(process, timelimit, grace, time_granularity):
                 print("Killing target process")
                 process.kill()
             print("Process terminated/killed")
-            return 0
         time.sleep(time_granularity)
-
-    return remaining
+    return used
             
 
 def main(name, regex, username, timelimit, grace, time_granularity):
-    print("Entering main()")
-    filepath = os.path.join('/tmp', name + "_seconds_remaining")
+    filepath = os.path.join('/tmp', name + "_seconds_used")
     while True:
-        print("Starting `while` loop in main()")
+        print("Checking for matching process")
         process = find_proc_by_regex(regex, username)
         if process:
+            used = 0
             if os.path.isfile(filepath): 
                 # check that timestamp is from today
                 if datetime.datetime.fromtimestamp(os.path.getmtime(filepath)).day == \
                     datetime.date.today().day:
                         with open(filepath) as f:
                             try:
-                                timelimit = int(f.read())
+                                used = float(f.read())
                             except:
                                 pass
-            remaining = track_process(process, timelimit, grace, time_granularity)
-            with open(os.path.join('/tmp', name + "_seconds_remaining"), 'w+') as f:
-                f.write(str(remaining))
+            used += track_process(process, timelimit - used, grace, time_granularity)
+            print("Process exited after using {} seconds".format(used))
+            with open(os.path.join('/tmp', name + "_seconds_used"), 'w+') as f:
+                f.write(str(used))
         else:
             print("No matching process found")
 
@@ -80,8 +78,8 @@ if __name__ == "__main__":
     username = 'ian'
     #timelimit = 60 * 60 * 3
     timelimit = 60 * 200
-    grace = 30
-    time_granularity = 20
+    grace = 5
+    time_granularity = 10
 
     main(name, regex, username, timelimit, grace, time_granularity)
 
